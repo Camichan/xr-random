@@ -1,0 +1,87 @@
+<html>
+
+<head>
+  <title>XR Random</title>
+  <script src="../../dist/aframe-xr-random.min.js"></script>
+  <script src="https://rawgit.com/fernandojsg/aframe-teleport-controls/master/dist/aframe-teleport-controls.min.js"></script>
+</head>
+
+<body>
+    <a-scene background="color: #ECECEC">
+        <a-entity environment="preset: japan"></a-entity>  
+
+        <a-assets>
+            <a-asset-item id="font" src="https://rawgit.com/mrdoob/three.js/dev/examples/fonts/optimer_bold.typeface.json"></a-asset-item>
+        </a-assets>
+
+        <!-- BabiaXR Components -->
+        <a-entity babiaxr-simplebarchart='legend: false; axis: false; palette: ubuntu; title: HAPPY VALENTINES DAY;
+        titleColor: #f1467c; titleFont: #font; titlePosition: 1.2 8.5 0; heightMax: 10; animation: true;
+            data: [
+            {"x_axis":" ","height":90},
+            {"x_axis":" ","height":70},
+            {"x_axis":"W","height":60},
+            {"x_axis":"E","height":50},
+            {"x_axis":" ","height":40},
+            {"x_axis":"L","height":30},
+            {"x_axis":"O","height":20},
+            {"x_axis":"V","height":10},
+            {"x_axis":"E","height":20},
+            {"x_axis":" ","height":30},
+            {"x_axis":"Y","height":40},
+            {"x_axis":"O","height":50},
+            {"x_axis":"U","height":60},
+            {"x_axis":" ","height":70},
+            {"x_axis":" ","height":90}
+            ]'
+        position="-3 0 -3" rotation="0 0 0" scale="0.5 0.5 0.5"></a-entity>
+
+        <a-entity babiaxr-simplebarchart='legend: false; axis: false; palette: ubuntu; 
+            heightMax: 5; animation: true;
+            data: [
+            {"x_axis":"F","height":50},
+            {"x_axis":"O","height":40},
+            {"x_axis":"R","height":30},
+            {"x_axis":"E","height":20},
+            {"x_axis":"V","height":20},
+            {"x_axis":"E","height":20},
+            {"x_axis":"R","height":30},
+            {"x_axis":" ","height":40},
+            {"x_axis":"&","height":30},
+            {"x_axis":" ","height":20},
+            {"x_axis":"E","height":20},
+            {"x_axis":"V","height":20},
+            {"x_axis":"E","height":30},
+            {"x_axis":"R","height":40},
+            {"x_axis":" ","height":50}
+            ]'
+        position="-3 7.5 -3" rotation="180 0 0" scale="0.5 0.5 0.5"></a-entity>
+
+        <a-entity id ="cameraRig" position="0 0 5">
+            <!-- camera -->
+            <a-entity id="head" camera look-controls
+            wasd-controls="fly: false">
+            </a-entity>
+            <!-- hand controls --> 
+            <a-entity id="leftHand" teleport-controls="cameraRig: #cameraRig; teleportOrigin: #head;
+                hitCylinderColor: #ff3468; curveHitColor: #ff3468; curveMissColor: #333333; curveLineWidth: 0.01; button: trigger" 
+                oculus-touch-controls="hand: left">
+            </a-entity>
+            <a-entity id="rightHand" 
+                oculus-touch-controls="hand: right" laser-controls="hand: right" raycaster="objects: .babiaxraycasterclass">
+            <a-entity id ="cursor" cursor="rayOrigin:mouse" raycaster="objects: .babiaxraycasterclass"></a-entity>
+      </a-entity>
+
+
+    </a-scene>
+    <script>
+        setTimeout(function () {
+            let titles = document.querySelectorAll('.babiaxrTitle');
+            titles.forEach(title => {
+                title.setAttribute('scale', {x: 2, y: 2, z: 2})
+            });
+        }, 1000);
+        
+    </script>
+</body>
+</html>
