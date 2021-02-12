@@ -1,3 +1,4 @@
+require('three');
 require('aframe');
 require('aframe-environment-component');
 require('aframe-ui-widgets');

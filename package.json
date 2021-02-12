@@ -47,6 +47,7 @@
     "semistandard": "^8.0.0",
     "sinon": "^1.17.5",
     "sinon-chai": "^2.8.0",
+    "uglify-es": "github:mishoo/UglifyJS2#harmony",
     "webpack": "^2.7.0"
   },
   "dependencies": {
