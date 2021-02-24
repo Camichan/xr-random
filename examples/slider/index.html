@@ -12,14 +12,15 @@
         <a-entity environment="preset: japan"></a-entity>  
 
         <!-- Slider -->
-        <a-entity id="valueSlider" ui-slider="min: 1; max: 10; value: 5" position="0 1 0" rotation="90 0 0"></a-entity>
+        <!--<a-entity id="valueSlider1" ui-slider="min: 1; max: 10; value: 5" position="0 1 0" rotation="90 0 0"></a-entity>-->
+        <a-entity id="valueSlider2" my-slider="min: 1; max: 10; value: 5; size: 2" position="0 1.5 -1" rotation="0 0 0"></a-entity>
 
         <!-- Controllers -->
         <a-entity interaction-hands aabb-collider="objects: .grabbable" id="lhand" hand-controls="hand: left; handModelStyle: highPoly" mixin="touch"></a-entity>
         <a-entity interaction-hands aabb-collider="objects: .grabbable" id="rhand" hand-controls="hand: right; handModelStyle: highPoly" mixin="touch"></a-entity>
 
         <a-camera mouse-cursor wasd-controls>
-            <a-cursor></a-cursor>
+            
         </a-camera>
     </a-scene>
 </body>

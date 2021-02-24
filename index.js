@@ -1,9 +1,11 @@
-require('three');
-require('aframe');
-require('aframe-environment-component');
-require('aframe-ui-widgets');
-require('aframe-babia-components');
-require('aframe-text-geometry-component');
+require('three')
+require('aframe')
+require('aframe-environment-component')
+require('aframe-ui-widgets')
+require('aframe-babia-components')
+require('aframe-text-geometry-component')
+
+require('./src/components/SliderComponent/slider')
 
 //require('aframe-event-set-component');
 //require('aframe-log-component');
