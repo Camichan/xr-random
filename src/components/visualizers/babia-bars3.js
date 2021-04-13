@@ -216,7 +216,7 @@ AFRAME.registerComponent('babia-axis-y', {
         // Duration of animations
         dur: { type: 'number', default: 2000}
     },
- 
+
     init: function() {
         this.axis = new Axis(this.el, 'y', this.data.animation, this.data.dur);
     },
@@ -293,7 +293,7 @@ AFRAME.registerComponent('babia-axis-x', {
 
     update: function (oldData) {
         const data = this.data;
-        console.log('Starting babia-axis-x:', data.ticks.length, data.length, this.data.color);
+        console.log('Starting babia-axis-x:');
 
          // Set axis line
         this.axis.updateLine(data.length, data.color);
@@ -493,13 +493,14 @@ AFRAME.registerComponent('babiaxr-simplebarchart', {
         chartHeight: { type: 'number', default: 10 },
         // Keep height when updating data
         keepHeight: { type: 'boolean', default: true},
-        incremental: { type: 'boolean', default: false},
-        index: { type: 'string', default: 'x_axis'},
         // Should this be animated
         animation: { type: 'boolean', default: true},
         // Duration of animations
         dur: { type: 'number', default: 2000},
+        
     },
+
+//    dependencies: ['babiaxr-querier_json'],
 
     /**
      * List of visualization properties
@@ -519,11 +520,10 @@ AFRAME.registerComponent('babiaxr-simplebarchart', {
         this.chartEl = document.createElement('a-entity');
         this.chartEl.classList.add('babiaxrChart')
         this.el.appendChild(this.chartEl);
-
         // Build titleEl
         this.titleEl = document.createElement('a-entity');
         this.titleEl.classList.add("babiaxrTitle")
-        this.el.appendChild(this.titleEl);
+        this.el.appendChild(this.chartEl);
     },
 
     /**
@@ -546,11 +546,10 @@ AFRAME.registerComponent('babiaxr-simplebarchart', {
             // Data is ready, build chart
             this.updateChart();
             // Dispatch events because I updated my visualization
-            dataReadyToSend("newData", self)
-            self.currentData = JSON.parse(JSON.stringify(self.newData))
+            dataReadyToSend("babiaData", self);
         };
-
     },
+
     /**
     * Called when a component is removed (e.g., via removeAttribute).
     * Generally undoes all modifications to the entity.
@@ -565,22 +564,18 @@ AFRAME.registerComponent('babiaxr-simplebarchart', {
     /**
      * Property of the querier where the data is saved
      */
-    dataComponentDataPropertyName: "newData",
+    dataComponentDataPropertyName: "babiaData",
 
     /**
      * Event name to difference between querier and filterdata
      */
     dataComponentEventName: undefined,
 
+
     /**
      * Where the data is gonna be stored
      */
-    newData: undefined,
-
-    /**
-     * Where the previous state data is gonna be stored
-     */
-    currentData: undefined,
+    babiaData: undefined,
 
     /**
      * Where the metaddata is gonna be stored
@@ -590,14 +585,9 @@ AFRAME.registerComponent('babiaxr-simplebarchart', {
     },
 
     /**
-     * Duration of the animation if activated
+     * Bars width
      */
     widthBars: 1,
-
-    /**
-     * Duration of the animation if activated
-     */
-    total_duration: 3000,
 
     /**
      * Proportion of the bars
@@ -609,21 +599,6 @@ AFRAME.registerComponent('babiaxr-simplebarchart', {
      */
     valueMax: undefined,
 
-    labels: [],
-    ticks: [],
-
-    /**
-    * Called when entity pauses.
-    * Use to stop or remove any dynamic or background behavior such as events.
-    */
-    pause: function () { },
-
-    /**
-    * Called when entity resumes.
-    * Use to continue or add any dynamic or background behavior such as events.
-    */
-    play: function () { },
-
     /**
     * Register function when I'm updated
     */
@@ -632,8 +607,8 @@ AFRAME.registerComponent('babiaxr-simplebarchart', {
         this.interestedElements.push(interestedElem)
 
         // Send the latest version of the data
-        if (this.newData) {
-            dispatchEventOnElement(interestedElem, "newData")
+        if (this.babiaData) {
+            dispatchEventOnElement(interestedElem, "babiaData")
         }
     },
 
@@ -662,7 +637,7 @@ AFRAME.registerComponent('babiaxr-simplebarchart', {
      * Data is loaded in this.babiaData
      * Precedence: data attribute, else component in same element, else other component
      */
-     loadData: function (oldData) {
+    loadData: function (oldData) {
         let el = this.el;
         let data;
 
@@ -671,50 +646,39 @@ AFRAME.registerComponent('babiaxr-simplebarchart', {
             console.log("Data in data argument");
             data = this.data.data;
             if (typeof(data) === 'string' || data instanceof String) {
-                this.newData = JSON.parse(data);
+                this.babiaData = JSON.parse(data);
             } else {
-                this.newData = data;
+                this.babiaData = data;
             };
-            this.babiaMetadata = { id: this.babiaMetadata.id++ };
+            self.babiaMetadata = { id: this.babiaMetadata.id++ };
             return "Ready";
-        } else {
-            if (this.data.from !== oldData.from) {
-                // From changed, re-register to the new data component
-                console.log("From was changed");
-                // Unregister for old querier
-                if (this.dataComponent) { this.dataComponent.unregister(el) };
-                // Find the new component and check if querier or filterdata from the event               
-                let eventName = findDataComponent(this.data, el, this)
-                // If changed to filterdata or to querier
-                if (this.dataComponentEventName && this.dataComponentEventName !== eventName) {
-                    el.removeEventListener(this.dataComponentEventName, _listener, true)
-                }
-                // Assign new eventName
-                this.dataComponentEventName = eventName
-
-                // Attach to the events of the data component
-                el.addEventListener(this.dataComponentEventName, _listener = (e) => {
-                    attachNewDataEventCallback(this, e);
-                });
-
-                // Register for the new one
-                this.dataComponent.register(el);
+        } else if (this.data.from !== oldData.from) {
+            // From changed, re-register to the new data component
+            // Unregister for old querier
+            if (this.dataComponent) { this.dataComponent.unregister(el) };
+            // Find the new component and check if querier or filterdata from the event               
+            let eventName = findDataComponent(this.data, el, this)
+            // If changed to filterdata or to querier
+            if (this.dataComponentEventName && this.dataComponentEventName !== eventName) {
+                el.removeEventListener(this.dataComponentEventName, _listener, true)
             }
+            // Assign new eventName
+            this.dataComponentEventName = eventName
 
-            // If changed whatever, re-print with the current data
-            if (data !== oldData && this.newData && !this.data.incremental) {
-                // From was changed and data is absolute
-                console.log("New Absolute Data");
-                return "Ready";
-            }
+            // Attach to the events of the data component
+            el.addEventListener(this.dataComponentEventName, _listener = (e) => {
+                attachNewDataEventCallback(this, e);
+            });
 
+            // Register for the new one
+            this.dataComponent.register(el);
             return "Waiting";
         }
     },
 
     /*
-    * Update title
-    */
+     * Update title
+     */
     updateTitle: function() {
         const titleEl = this.titleEl;
         const data = this.data;
@@ -738,7 +702,7 @@ AFRAME.registerComponent('babiaxr-simplebarchart', {
             };
             this.xAxisEl.setAttribute('babia-axis-x',
                 {'labels': labels, 'ticks': ticks, 'length': lengthX,
-                    'palette': data.palette});
+                 'palette': data.palette});
             this.xAxisEl.setAttribute('position', {
                 x: 0, y: 0, z: this.widthBars/2
             });
@@ -761,15 +725,12 @@ AFRAME.registerComponent('babiaxr-simplebarchart', {
      * 
      */
     updateChart: function () {
+        console.log("updateChart:", this.babiaData);
+
         const el = this.el;
         const data = this.data;
 
-        let babiaData
-        if (this.currentData) {
-            babiaData = this.currentData;
-        } else {
-            babiaData = this.newData;
-        }
+        const babiaData = this.babiaData;
         const widthBars = this.widthBars;
         const palette = data.palette
         const scale = data.scale
@@ -797,32 +758,23 @@ AFRAME.registerComponent('babiaxr-simplebarchart', {
             let item = babiaData[i]
  
             // Build bar
-            xLabel = item[data.index];
+            xLabel = item[data.x_axis];
             let posX = i * widthBars * 1.25;
-            let barEl = chartEl.querySelector('#' + xLabel);
+            let barEl = chartEl.querySelector('a-entity[babia-bar][babia-name="'+xLabel+'"]');
             if (!barEl) {
                 barEl = document.createElement('a-entity');
-                barEl.id = xLabel;
+                barEl.setAttribute('babia-name', xLabel);
                 barEl.classList.add("babiaxraycasterclass");
                 barEl.object3D.position.x = posX;
                 chartEl.appendChild(barEl);
             };
-
-            if (!item['_not']) { 
-                barEl.setAttribute('babia-bar', {
-                    'height': item[data.height] * this.lengthY / maxValue,
-                    'width': widthBars,
-                    'depth': widthBars,
-                    'color': colors.get(colorId, palette),
-                    'label': 'events'
-                });
-            } else {
-                barEl.setAttribute('babia-bar', {
-                    'height': -0.1,
-                    'color': colors.get(colorId, palette),
-                });
-            }
-
+            barEl.setAttribute('babia-bar', {
+                'height': item[data.height] * this.lengthY / maxValue,
+                'width': widthBars,
+                'depth': widthBars,
+                'color': colors.get(colorId, palette),
+                'label': 'events'
+            });
             if (data.legend) {
                 barEl.setAttribute('babia-bar', {
                     'labelText': xLabel + ': ' + item[data.height]
@@ -837,13 +789,14 @@ AFRAME.registerComponent('babiaxr-simplebarchart', {
                         'to': posX,
                         'dur': data.dur
                     });
+                    console.log(barEl);
                 } else {
                     console.log("Setting position")
                     barEl.object3D.position.x = posX;
                 };
             }
 
-            xLabels.push(item[data.index]);
+            xLabels.push(item[data.x_axis]);
             xTicks.push(posX);
 
             colorId++
@@ -852,8 +805,6 @@ AFRAME.registerComponent('babiaxr-simplebarchart', {
         //Print axis
         const lengthX = widthBars * (babiaData.length * 1.25 + 0.75);
         this.updateAxis(xLabels, xTicks, lengthX, maxValue);
-        this.labels = xLabels
-        this.ticks = xTicks
     },
 })
 
@@ -862,41 +813,41 @@ let findDataComponent = (data, el, self) => {
     if (data.from) {
         // Save the reference to the querier or filterdata
         let dataElement = document.getElementById(data.from)
-        if (dataElement.components['babia-filter']) {
-            self.dataComponent = dataElement.components['babia-filter']
+        if (dataElement.components['babiaxr-filterdata']) {
+            self.dataComponent = dataElement.components['babiaxr-filterdata']
             eventName = "babiaFilterDataReady"
-        } else if (dataElement.components['babia-queryjson']) {
-            self.dataComponent = dataElement.components['babia-queryjson']
-        } else if (dataElement.components['babia-queryes']) {
-            self.dataComponent = dataElement.components['babia-queryes']
-        } else if (dataElement.components['babia-querygithub']) {
-            self.dataComponent = dataElement.components['babia-querygithub']
+        } else if (dataElement.components['babiaxr-querier_json']) {
+            self.dataComponent = dataElement.components['babiaxr-querier_json']
+        } else if (dataElement.components['babiaxr-querier_es']) {
+            self.dataComponent = dataElement.components['babiaxr-querier_es']
+        } else if (dataElement.components['babiaxr-querier_github']) {
+            self.dataComponent = dataElement.components['babiaxr-querier_github']
         } else {
             console.error("Problem registering to the querier")
             return
         }
     } else {
         // Look for a querier or filterdata in the same element and register
-        if (el.components['babia-filter']) {
-            self.dataComponent = el.components['babia-filter']
+        if (el.components['babiaxr-filterdata']) {
+            self.dataComponent = el.components['babiaxr-filterdata']
             eventName = "babiaFilterDataReady"
-        } else if (el.components['babia-queryjson']) {
-            self.dataComponent = el.components['babia-queryjson']
-        } else if (el.components['babia-queryes']) {
-            self.dataComponent = el.components['babia-queryes']
-        } else if (el.components['babia-querygithub']) {
-            self.dataComponent = el.components['babia-querygithub']
+        } else if (el.components['babiaxr-querier_json']) {
+            self.dataComponent = el.components['babiaxr-querier_json']
+        } else if (el.components['babiaxr-querier_es']) {
+            self.dataComponent = el.components['babiaxr-querier_es']
+        } else if (el.components['babiaxr-querier_github']) {
+            self.dataComponent = el.components['babiaxr-querier_github']
         } else {
             // Look for a querier or filterdata in the scene
-            if (document.querySelectorAll("[babia-filter]").length > 0) {
-                self.dataComponent = document.querySelectorAll("[babia-filter]")[0].components['babia-filter']
+            if (document.querySelectorAll("[babiaxr-filterdata]").length > 0) {
+                self.dataComponent = document.querySelectorAll("[babiaxr-filterdata]")[0].components['babiaxr-filterdata']
                 eventName = "babiaFilterDataReady"
-            } else if (document.querySelectorAll("[babia-queryjson]").length > 0) {
-                self.dataComponent = document.querySelectorAll("[babia-queryjson]")[0].components['babia-queryjson']
-            } else if (document.querySelectorAll("[babia-queryjson]").length > 0) {
-                self.dataComponent = document.querySelectorAll("[babia-queryes]")[0].components['babia-queryes']
-            } else if (document.querySelectorAll("[babia-querygithub]").length > 0) {
-                self.dataComponent = document.querySelectorAll("[babia-querygithub]")[0].components['babia-querygithub']
+            } else if (document.querySelectorAll("[babiaxr-querier_json]").length > 0) {
+                self.dataComponent = document.querySelectorAll("[babiaxr-querier_json]")[0].components['babiaxr-querier_json']
+            } else if (document.querySelectorAll("[babiaxr-querier_json]").length > 0) {
+                self.dataComponent = document.querySelectorAll("[babiaxr-querier_es]")[0].components['babiaxr-querier_es']
+            } else if (document.querySelectorAll("[babiaxr-querier_github]").length > 0) {
+                self.dataComponent = document.querySelectorAll("[babiaxr-querier_github]")[0].components['babiaxr-querier_github']
             } else {
                 console.error("Error, querier not found")
                 return
@@ -911,97 +862,20 @@ let attachNewDataEventCallback = (self, e) => {
     self.dataComponentDataPropertyName = e.detail
     let rawData = self.dataComponent[self.dataComponentDataPropertyName]
 
-    self.newData = rawData
+    self.babiaData = rawData
     self.babiaMetadata = {
         id: self.babiaMetadata.id++
     }
 
-    if (!self.data.incremental){
-        self.currentData = JSON.parse(JSON.stringify(self.newData))
-        // Update chart
-        self.updateChart()
-    } else {
-        // First add the new data in current data
-        self.newData.forEach(bar => {
-            let found = false
-            for(let i in self.currentData){
-                if (self.currentData[i][self.data.index] == bar[self.data.index]){
-                    self.currentData[i] = bar
-                    found = true
-                }
-            }
-            if (!found){
-                self.currentData.push(bar)
-            }
-        });
-        // If Keep Height (need re-draw all)
-        if (self.data.keepHeight){
-            // To calculate maxValue you need all data before
-            self.maxValue = Math.max.apply(Math, self.currentData.map(function (o) { return o[self.data.height]; }))
-            console.log("Re-draw the chart")
-            self.updateChart()
-        } else {
-            self.newData.forEach(bar => {
-                if (!bar._not){
-                    if (self.chartEl.querySelector('#' + bar[self.data.index])){
-                        // Update bar
-                        self.chartEl.querySelector('#' + bar[self.data.index]).setAttribute('babia-bar', 
-                        {
-                            'height': bar[self.data.height] * self.data.chartHeight / self.maxValue,
-                            'labelText': bar[self.data.index] + ': ' + bar[self.data.height]
-                        })
-                    } else {
-                        // Find last bar and get its position
-                        let colorId = self.chartEl.querySelectorAll('[babia-bar]').length
-                        let posX = self.chartEl.querySelectorAll('[babia-bar]')[colorId - 1].getAttribute('position').x + self.widthBars + self.widthBars / 4
-                        // Create new bar
-                        let barEntity = generateBar(self, self.data, bar, self.maxValue, self.widthBars, colorId, self.data.palette, posX);
-                        self.chartEl.appendChild(barEntity)
-                        // Add label and tick
-                        self.labels.push(barEntity.id)
-                        self.ticks.push(posX)
-                    }
-                } else {
-                    // Delete bar
-                    self.chartEl.querySelector("#" + bar[self.data.index]).setAttribute('babia-bar', 'height', -0.1)
-                    //document.getElementById(bar[self.data.index]).remove()
-                }
-            });
-            // Update axis
-            let len_x = self.ticks[self.ticks.length - 1] + self.widthBars * 3 / 4
-            if (!self.data.chartHeight || !self.data.keepHeight){
-                // Calculate new maxValue and lengthY
-                let maxValue_new = Math.max.apply(Math, self.currentData.map(function (o) { return o[self.data.height]; }))
-                self.lengthY = maxValue_new * self.data.chartHeight / self.maxValue
-                self.maxValue = maxValue_new
-            }
-            self.updateAxis(self.labels, self.ticks, len_x, self.maxValue)
-        } 
-    }
-
+    // Generate chart
+    while (self.el.firstChild)
+        self.el.firstChild.remove();
+//    self.chart = generateBarChart(self, self.data, rawData, self.el, self.animation, self.chart, self.bar_array, self.widthBars)
+    self.updateChart();
     // Dispatch interested events because I updated my visualization
-    dataReadyToSend("newData", self)
+    dataReadyToSend("babiaData", self)
 }
 
-let generateBar = (self, data, item, maxValue, widthBars, colorId, palette, stepX ) => {
-    let bar = document.createElement('a-entity');
-    bar.setAttribute('babia-bar', {
-        'height': item[self.data.height] * data.chartHeight / self.maxValue,
-        'width': widthBars,
-        'depth': widthBars,
-        'color': colors.get(colorId, palette),
-        'label': 'events'
-    });
-    if (data.legend) {
-        bar.setAttribute('babia-bar', {
-            'labelText': item[self.data.x_axis] + ': ' + item[self.data.height]
-        });
-    };
-    bar.setAttribute('position', { x: stepX, y: 0, z: 0 }); 
-    bar.id = item[self.data.index]
-    bar.classList.add("babiaxraycasterclass");
-    return bar
-}
 
 let dataReadyToSend = (propertyName, self) => {
     self.interestedElements.forEach(element => {

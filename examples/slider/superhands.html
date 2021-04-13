@@ -15,13 +15,20 @@
         <!-- Slider -->
         <!--<a-entity id="valueSlider1" ui-slider="min: 1; max: 10; value: 5" position="0 1 0" rotation="90 0 0"></a-entity>-->
         <a-entity id="valueSlider2" my-slider="min: 1; max: 10; value: 5; size: 2" position="0 1.5 -1" rotation="0 0 0"
-        hoverable grabbable stretchable draggable dropppable></a-entity>
+         grabbable ></a-entity>
 
         <!-- Controllers -->
         <a-entity interaction-hands aabb-collider="objects: .grabbable" id="lhand" hand-controls="hand: left; handModelStyle: highPoly" mixin="touch"></a-entity>
         <a-entity interaction-hands aabb-collider="objects: .grabbable" id="rhand" hand-controls="hand: right; handModelStyle: highPoly" mixin="touch"></a-entity>
 
-        <a-camera mouse-cursor wasd-controls super-hands>
+        <a-entity camera wasd-controls position="0 1 1"
+                capture-mouse
+                raycaster="objects: #valueSlider2" cursor="rayOrigin:mouse"
+                super-hands="colliderEvent: raycaster-intersection;
+                             colliderEventProperty: els;
+                             colliderEndEvent:raycaster-intersection-cleared;
+                             colliderEndEventProperty: clearedEls;">
+        </a-entity>
             
         </a-camera>
     </a-scene>

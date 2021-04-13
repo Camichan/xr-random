@@ -8,13 +8,25 @@
 
 <body>
     <a-scene rain background="color: #ECECEC">
-        <a-entity environment="preset: japan"></a-entity>  
+        <a-entity environment="preset: japan"></a-entity>
 
         <a-entity id="graph" babia-queryjson="url: data.json;" 
-                  babiaxr-simplebarchart='legend: true; axis: true' 
-        position="-5 0 0" rotation="0 0 0"></a-entity>
+                  babiaxr-simplebarchart='legend: true; axis: true; keepHeight: true' 
+        position="-15 0 0.1" rotation="0 0 0"></a-entity>
 
-        <a-entity movement-controls="fly: true" position="-3 5 20">
+        <a-entity id="graph2" babia-queryjson="url: data.json;" 
+                  babiaxr-simplebarchart='legend: true; axis: true; keepHeight: false' 
+        position="-5 0 0.1" rotation="0 0 0"></a-entity>
+
+        <a-entity id="graph3" babia-queryjson="url: data.json;" 
+                  babiaxr-simplebarchart='legend: true; axis: true; keepHeight: false' 
+        position="5 0 0.1" rotation="0 0 0"></a-entity>
+
+        <a-entity id="graph4" babia-queryjson="url: data.json;" 
+                  babiaxr-simplebarchart='legend: true; axis: true; keepHeight: true' 
+        position="15 0 1" rotation="0 0 0"></a-entity>
+
+        <a-entity movement-controls="fly: true" position="0 5 20">
             <a-entity camera position="0 0 0" look-controls></a-entity>
             <a-entity cursor="rayOrigin:mouse"></a-entity>
             <a-entity laser-controls="hand: right"></a-entity>
@@ -26,6 +38,10 @@
       function updateData () {
         document.getElementById('graph').setAttribute('babia-queryjson', 'url', 'data2.json');
         document.getElementById('graph').setAttribute('babiaxr-simplebarchart', 'incremental', 'true');
+        document.getElementById('graph2').setAttribute('babia-queryjson', 'url', 'data2.json');
+        document.getElementById('graph2').setAttribute('babiaxr-simplebarchart', 'incremental', 'true');
+        document.getElementById('graph3').setAttribute('babia-queryjson', 'url', 'data3.json');
+        document.getElementById('graph4').setAttribute('babia-queryjson', 'url', 'data3.json');
       }
 
     </script>
