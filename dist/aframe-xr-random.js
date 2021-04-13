@@ -128258,6 +128258,135 @@ AFRAME.registerComponent('babia-label', {
         }
 });
 
+/*
+ * Class for building axis (x, y, or z), with labels and everything
+ */
+class Axis {
+    /*
+    * @param el Element
+    * @param axis Axis ('x´, 'y', 'z')
+    * @param anim Is done with animation?
+    * @param dur Duration of the animation
+    */
+    constructor(el, axis, anim, dur) {
+        this.el = el;
+        this.axis = axis;
+        this.anim = anim;
+        this.dur = dur;
+    }
+    /*
+    * Update axis line
+    *
+    * @param length Lenght of axis line
+    * @param color Color of axis line
+    */
+    updateLine(length, color) {
+        const axis = this.axis;
+        const el = this.el;
+        const anim = this.anim;
+        const dur = this.dur;
+
+        const comp = `line__${axis}axis`
+        let lineEl = el.components[comp];
+        let end = { x: 0, y: 0, z: 0};
+        end[axis] = length;
+
+        if (anim && lineEl) {
+            el.setAttribute(`animation__${axis}axis`, {
+                'property': `${comp}.end`,
+                'to': end,
+                'dur': dur
+            });
+            el.setAttribute(comp, { 'color': color });
+        } else {
+            el.setAttribute(comp, {
+                'start': { x: 0, y: 0, z: 0 },
+                'end': end,
+                'color': color
+            });
+        };
+
+    };
+
+    /*
+    * Remove labels which are children of an element
+    *
+    * @param el Element
+    * @param anim Is done with animation?
+    * @param dur Duration of the animation
+    */
+    removeLabels() {
+        const el = this.el;
+        const anim = this.anim;
+        const dur = this.dur;
+        
+        let labels = el.querySelectorAll('[text]');
+        for (const label of labels) {
+            if (anim) {
+                label.addEventListener('animationcomplete', function (e) {
+                    e.target.remove();
+                });
+                label.setAttribute('animation', {
+                    'property': 'text.opacity',
+                    'to': 0,
+                    'dur': dur
+                });
+            } else {
+                label.remove();
+            }
+        };
+    };
+
+    /*
+    * Update labels
+    *
+    * @param ticks Points in the axis for the labels
+    * @param labels Labels to write in the ticks
+    * @param color Color to use
+    * @param palette Palette of colors to use
+    */
+    updateLabels(ticks, labels, color, palette) {
+        const axis = this.axis;
+        let el = this.el;
+        const anim = this.anim;
+        const dur = this.dur;
+        
+        for (let i = 0; i < ticks.length; ++i) {
+            let label = document.createElement('a-entity');
+            let icolor = color;
+            if (palette) {
+                icolor = colors.get(i, palette);
+            };
+            label.setAttribute('text', {
+                'value': labels[i],
+                'align': 'right',
+                'width': 10,
+                'color': icolor,
+                'opacity': 0
+            });
+            let pos;
+            if (axis === 'x') {
+                pos = { x: ticks[i], y: 0, z: 5 };
+            } else if (axis === 'y') {
+                pos = { x: - 5.2, y: ticks[i], z: 0 };
+            }
+            label.setAttribute('position', pos);
+            if (axis === 'x') {
+                label.setAttribute('rotation', { x: -90, y: 90, z: 0 });
+            };
+            if (anim) {
+                label.setAttribute('animation', {
+                    'property': 'text.opacity',
+                    'to': 1,
+                    'dur': dur
+                });
+            } else {
+                label.setAttribute('text', {'opacity': 1})
+            };
+            el.appendChild(label);
+        };
+    };
+}
 
  /*
  * BabiaXR Y Axis component
@@ -128273,49 +128402,57 @@ AFRAME.registerComponent('babia-axis-y', {
         // Minimum number of steps
         minSteps: { type: 'number', default: 6 },
         // Color for axis and labels
-        color: { type: 'color', default: '#000' }
+        color: { type: 'color', default: '#000' },
+        // Should this be animated
+        animation: { type: 'boolean', default: true},
+        // Duration of animations
+        dur: { type: 'number', default: 2000}
+    },
+ 
+    init: function() {
+        this.axis = new Axis(this.el, 'y', this.data.animation, this.data.dur);
     },
 
     update: function (oldData) {
+        const data = this.data;
         let maxValue = this.data.maxValue;
         let length = this.data.length;
+        let minSteps = this.data.minSteps;
+        const animation = this.data.animation;
+        const dur = this.data.dur;
         let decimals = 0;
         console.log('Starting babia-axis-y:', maxValue, length, this.data.color);
 
-        // Get number of significant digits (negative is decimals)
-        let maxValueLog = Math.floor(Math.log10(maxValue));
-        if (maxValueLog <= 0) {
-            decimals = - maxValueLog + 1;
+        if ((maxValue != oldData.maxValue) || (length != oldData.maxValue) ||
+            (minSteps != oldData.minSteps)) {
+            // Get number of significant digits (negative is decimals)
+            let maxValueLog = Math.floor(Math.log10(maxValue));
+            if (maxValueLog <= 0) {
+                decimals = - maxValueLog + 1;
+            };
+            let axisScale = length / maxValue;
+            let step = Math.pow(10, maxValueLog);
+            let steps = maxValue / step;
+            while (steps <= minSteps) {
+                step = step / 2;
+                steps = maxValue / step;
+            };
+
+            // Set axis line
+            this.axis.updateLine(length, data.color);
+            // Remove old labels
+            this.axis.removeLabels();
+
+            // Create new labels
+            let ticks = [];
+            let labels = [];
+            for (let tick = 1; step * tick < maxValue; tick++) {
+                vtick = step * tick;
+                ticks.push(vtick * axisScale);
+                labels.push(vtick.toFixed(decimals));
+            };
+            this.axis.updateLabels(ticks, labels, data.color, data.palette);
         };
-        let axisScale = length / maxValue;
-        let step = Math.pow(10, maxValueLog);
-        let steps = maxValue / step;
-        while (steps <= this.data.minSteps) {
-            step = step / 2;
-            steps = maxValue / step;
-        };
-
-        this.el.setAttribute('line__yaxis', {
-            'start': { x: 0, y: 0, z: 0 },
-            'end': { x: 0, y: length, z: 0 },
-            'color': this.data.color
-        });
-
-        for (let tick = 1; step * tick < maxValue; tick++) {
-            let value = step * tick;
-            let pos = value * axisScale;
-
-            let label = document.createElement('a-entity');
-            label.setAttribute('text', {
-                'value': value.toFixed(decimals),
-                'align': 'right',
-                'width': 10,
-                'color': this.data.color
-            });
-            label.setAttribute('position', 
-                { x: - 5.2, y: pos, z: 0 });
-            this.el.appendChild(label)
-        }    
     }
 });      
 
@@ -128335,40 +128472,28 @@ AFRAME.registerComponent('babia-axis-x', {
         // Color for axis and labels
         color: { type: 'color', default: '#000' },
         // Color palette (if not 'None', have precedence over color)
-        palette: { type: 'string', default: '' }
+        palette: { type: 'string', default: '' },
+        // Should this be animated
+        animation: { type: 'boolean', default: true},
+        // Duration of animations
+        dur: { type: 'number', default: 2000}
+    },
+
+    init: function() {
+        this.axis = new Axis(this.el, 'x', this.data.animation, this.data.dur);
     },
 
     update: function (oldData) {
-        let length = this.data.length;
-        let labels = this.data.labels;
-        let ticks = this.data.ticks;
-        let color = this.data.color;
-        let palette = this.data.palette;
-        console.log('Starting babia-axis-x:', length, color, labels);
+        const data = this.data;
+        console.log('Starting babia-axis-x:', data.ticks.length, data.length, this.data.color);
 
-        this.el.setAttribute('line__xaxis', {
-            'start': { x: 0, y: 0, z: 0 },
-            'end': { x: length, y: 0, z: 0 },
-            'color': color
-        });
-
-        for (let i = 0; i < ticks.length; ++i) {
-            let label = document.createElement('a-entity');
-            if (palette !== '') {
-                color = colors.get(i, palette);
-            };
-            label.setAttribute('text', {
-                'value': labels[i],
-                'align': 'right',
-                'width': 10,
-                'color': color
-            });
-            label.setAttribute('position', 
-                { x: ticks[i], y: 0, z: 5 });
-            label.setAttribute('rotation', { x: -90, y: 90, z: 0 });
-            this.el.appendChild(label);
-        };
-    }
+         // Set axis line
+        this.axis.updateLine(data.length, data.color);
+        // Remove old labels
+        this.axis.removeLabels();
+        // Update labels with new values
+        this.axis.updateLabels(data.ticks, data.labels, data.color, data.palette);
+     }
 
 });
 
@@ -128389,79 +128514,152 @@ AFRAME.registerComponent('babia-bar', {
         color: { type: 'color', default: '#000' },
         // Should this be animated
         animation: { type: 'boolean', default: true},
+        // Duration of animations
+        dur: { type: 'number', default: 2000},
         // Label for the bar ('', 'fixed', 'events')
         label: { type: 'string', default: ''},
         // Label text (valid if label is not empty)
         labelText: { type: 'string', default: ''}
     },
 
-    update: function (oldData) {
+    init: function() {
         console.log("Starting bar:", this.data.height, this.data.color);
-        let self = this;
-        while (self.el.firstChild)
-            self.el.firstChild.remove();
-        let box = document.createElement('a-entity');
-        box.setAttribute('material', { 'color': this.data.color });
-        box.setAttribute('geometry', {
-            'primitive': 'box',
-            'width': this.data.width,
-            'depth': this.data.depth,
-            'height': 0
-        });
-        if (this.data.animation) {
-            box.setAttribute('animation__height', {
-                'property': 'geometry.height',
-                'from': 0,
-                'to': this.data.height,
-                'dur': 2000
-            });
-            box.setAttribute('animation__pos', {
-                'property': 'position',
-                'from': { x: 0, y: 0, z:0 },
-                'to': { x: 0, y: this.data.height/2, z:0 },
-                'dur': 2000
-            });
+        let data = this.data;
+        this.box = document.createElement('a-entity');
+        this.el.appendChild(this.box);
+        let props = {}
+        if (data.animation) {
+            props = {'height': 0, 'width': data.width, 'depth': data.depth};
         } else {
-            box.setAttribute('geometry', { height: this.data.height });
-            box.setAttribute('position', { x: 0, y: this.data.height/2, z: 0 });
+            props = {'height': data.height, 
+                'width': data.width,
+                'depth': data.depth};
+        }
+        this.box.setAttribute('geometry', {
+            'primitive': 'box',
+            'height': props.height,
+            'width': props.width,
+            'depth': props.depth
+        });
+        this.box.setAttribute('material', {
+            'color': data.color
+        });
+    },
+
+    update: function (oldData) {
+        let data = this.data;
+        let box = this.box;
+
+        this.updateProperty(box, 'geometry', 'height', data.animation,
+            data['height'], oldData.height);
+        if (data.height != oldData.height) {
+            // If there is change in height, update position
+            if (data.animation) {
+                box.setAttribute('animation__pos', {
+                    'property': 'position',
+                    'to': { x: 0, y: data.height/2, z:0 },
+                    'dur': data.dur
+                });
+            } else {
+                box.setAttribute('position', { x: 0, y: data.height/2, z: 0 });
+            };
         };
+        this.updateProperty(box, 'geometry', 'width', data.animation,
+            data.width, oldData.width);
+        this.updateProperty(box, 'geometry', 'depth', data.animation,
+            data.depth, oldData.depth);
+        this.updateProperty(box, 'material', 'color', data.animation,
+            data.color, oldData.color);
         if (this.data.label === 'events') {
             box.addEventListener('mouseenter', this.showLabel.bind(this)); 
             box.addEventListener('mouseleave', this.hideLabel.bind(this));          
         } else if (this.data.label === 'fixed') {
-            this.showLabel();
+            this.showLabel(oldData);
         };
-        this.el.appendChild(box);
     },
 
-    showLabel: function () {
-        if (this.data.label === 'events') {
+    /*
+     * Update a property in an element, having animation into account
+     *
+     * @param el Element
+     * @param component Component in which to update property
+     * @param property Property to update in element
+     * @param name: Property name in data, oldData
+     * @param oldValue: Old value
+     */
+    updateProperty: function (el, component, property, anim, newValue, oldValue) {
+        let data = this.data;
+
+        if (newValue !== oldValue) {
+            if (anim) {
+                let prop = component;
+                if (property) { prop = prop + '.' + property };
+                el.setAttribute('animation__'+component+'_'+property, {
+                    'property': prop,
+                    'to': newValue,
+                    'dur': data.dur
+                });
+            } else {
+                if (property) {
+                    el.setAttribute(component, { [property]: newValue });        
+                } else {
+                    el.setAttribute(component, newValue);
+                }
+            };
+        };
+    },
+
+    showLabel: function (oldData) {
+        let data = this.data;
+
+        if (data.label === 'events') {
             this.el.setAttribute('scale', { x: 1.1, y: 1.1, z: 1.1 });
         };
 
-        let text = this.data.labelText;
+        text = data.labelText;
         let width = 2;
-        if (text.length > 16) width = text.length / 8;
+        if (text.length > 16) { width = text.length / 8 };
         let height = 1;
-        let position = {
-            x: 0, y: this.data.height + 0.6 * height,
-            z: 0.7 * this.data.depth
+        oldHeight = oldData.height || 0;
+        oldDepth = oldData.depth || 0;
+        let oldPosition = {
+            x: 0, y: oldHeight + 0.6 * height,
+            z: 0
         }
-    
-        label = document.createElement('a-entity');
-        label.setAttribute('babia-label', {
-            'text': text, 'width': width, 'textWidth': 6
-        });
-        label.setAttribute('position', position);
-        label.setAttribute('rotation', {x: 0, y: 0, z: 0});
-        this.el.appendChild(label);    
+
+        if (!this.labelEl) {
+            this.labelEl = document.createElement('a-entity');
+            this.labelEl.setAttribute('babia-label', {
+                'width': width, 'textWidth': 6
+            });
+            if (data.animation && (data.label === 'fixed')) {
+                this.labelEl.setAttribute('position', oldPosition);
+            };
+            this.el.appendChild(this.labelEl);
+        };
+
+        let position = {
+            x: 0, y: data.height + 0.6 * height,
+            z: 0.7 * data.depth
+        };
+
+        let anim = data.animation && (data.label === 'fixed');
+        this.updateProperty(this.labelEl, 'position', '', anim, position, oldPosition);
+        this.labelEl.setAttribute('rotation', {x: 0, y: 0, z: 0});
+        if (text != oldData.labelText) {
+            this.labelEl.setAttribute('babia-label', { 'text': data.labelText });
+        }
+
     },
 
     hideLabel: function () {
         if (this.data.label === 'events') {
             this.el.setAttribute('scale', { x: 1, y: 1, z: 1 });
         };
-        this.el.removeChild(label);    
+        if (this.labelEl) {
+            this.el.removeChild(this.labelEl);
+            this.labelEl = null;
+        }
     }
 });
 
@@ -128477,7 +128675,6 @@ AFRAME.registerComponent('babiaxr-simplebarchart', {
         from: { type: 'string' },
         legend: { type: 'boolean', default: false },
         axis: { type: 'boolean', default: true },
-        animation: { type: 'boolean', default: false },
         palette: { type: 'string', default: 'ubuntu' },
         title: { type: 'string' },
         titleFont: { type: 'string' },
@@ -128486,8 +128683,14 @@ AFRAME.registerComponent('babiaxr-simplebarchart', {
         scale: { type: 'number' },
         // Height of the chart
         chartHeight: { type: 'number', default: 10 },
+        // Keep height when updating data
+        keepHeight: { type: 'boolean', default: true},
         incremental: { type: 'boolean', default: false},
-        index: { type: 'string', default: 'x_axis'}
+        index: { type: 'string', default: 'x_axis'},
+        // Should this be animated
+        animation: { type: 'boolean', default: true},
+        // Duration of animations
+        dur: { type: 'number', default: 2000},
     },
 
     /**
@@ -128504,8 +128707,15 @@ AFRAME.registerComponent('babiaxr-simplebarchart', {
     * Called once when component is attached. Generally for initial setup.
     */
     init: function () {
-        this.time = Date.now();
-        this.anime_finished = false
+        // Build chartEl
+        this.chartEl = document.createElement('a-entity');
+        this.chartEl.classList.add('babiaxrChart')
+        this.el.appendChild(this.chartEl);
+
+        // Build titleEl
+        this.titleEl = document.createElement('a-entity');
+        this.titleEl.classList.add("babiaxrTitle")
+        this.el.appendChild(this.titleEl);
     },
 
     /**
@@ -128518,109 +128728,26 @@ AFRAME.registerComponent('babiaxr-simplebarchart', {
         let data = this.data;
         let el = this.el;
 
-        this.chart
+        console.log("Starting Bars");
         this.animation = data.animation
         this.bar_array = []
-        /**
-         * Update or create chart component
-         */
 
-        // Highest priority to data
-        if (data.data && oldData.data !== data.data) {
-            console.log("Caso 1")
-            // From data embedded, save it anyway
-            self.newData = self.data
-            self.babiaMetadata = {
-                id: self.babiaMetadata.id++
-            }
-
-            while (self.el.firstChild)
-                self.el.firstChild.remove();
-            self.chart = generateBarChart(self, self.data, JSON.parse(data.data), el, self.animation, self.chart, self.bar_array, self.widthBars)
-
-            // Dispatch interested events because I updated my visualization
+        // Load data, or set event handler for when the data is ready in other component
+        result = this.loadData(oldData);
+        if (result === "Ready") {
+            // Data is ready, build chart
+            this.updateChart();
+            // Dispatch events because I updated my visualization
             dataReadyToSend("newData", self)
             self.currentData = JSON.parse(JSON.stringify(self.newData))
+        };
 
-        } else {
-
-            // If changed from, need to re-register to the new data component
-            if (data.from !== oldData.from) {
-                console.log("Caso 2")
-                // Unregister for old querier
-                if (self.dataComponent) { self.dataComponent.unregister(el) }
-
-                // Find the component and get if querier or filterdata by the event               
-                let eventName = findDataComponent(data, el, self)
-                // If changed to filterdata or to querier
-                if (self.dataComponentEventName && self.dataComponentEventName !== eventName) {
-                    el.removeEventListener(self.dataComponentEventName, _listener, true)
-                }
-                // Assign new eventName
-                self.dataComponentEventName = eventName
-
-                // Attach to the events of the data component
-                el.addEventListener(self.dataComponentEventName, _listener = (e) => {
-                    attachNewDataEventCallback(self, e)
-                });
-
-                // Register for the new one
-                self.dataComponent.register(el)
-                return
-            }
-
-            // If changed whatever, re-print with the current data
-            if (data !== oldData && self.newData) {
-                console.log("Caso 3")
-                if (!self.data.incremental){
-                    console.log("Generating barchart...")
-                    while (self.el.firstChild)
-                        self.el.firstChild.remove();
-                    self.chart = generateBarChart(self, self.data, self.newData, el, self.animation, self.chart, self.bar_array, self.widthBars)
-                }
-
-                // Dispatch interested events because I updated my visualization
-                dataReadyToSend("newData", self)
-                self.currentData = JSON.parse(JSON.stringify(self.newData))
-            }
-
-        }
     },
     /**
     * Called when a component is removed (e.g., via removeAttribute).
     * Generally undoes all modifications to the entity.
     */
     remove: function () { },
-
-    /**
-    * Called on each scene tick.
-    */
-    tick: function (t, delta) {
-        const time_wait = 2000;
-        const self = this;
-        let new_time = Date.now();
-        if (this.animation && !this.anime_finished && this.chart) {
-            let elements = this.chart.children;
-            let diff_time = new_time - this.time;
-            if (diff_time >= time_wait) {
-                for (let bar in this.bar_array) {
-                    let prev_height = parseFloat(elements[bar].getAttribute('height'));
-                    let height_max = this.bar_array[bar].height_max;
-                    let pos_x = this.bar_array[bar].position_x;
-                    if (prev_height < height_max) {
-                        let new_height = ((diff_time - time_wait) * height_max) / self.total_duration;
-                        elements[bar].setAttribute('height', new_height);
-                        elements[bar].setAttribute('position', { x: pos_x, y: new_height / 2, z: 0 });
-                    } else {
-                        this.anime_finished = true;
-                        elements[bar].setAttribute('height', height_max);
-                        elements[bar].setAttribute('position', { x: pos_x, y: height_max / 2, z: 0 });
-                        console.log('Total time (wait + animation): ' + diff_time + 'ms')
-                    }
-                }
-            }
-        }
-    },
 
     /**
     * Querier component target
@@ -128719,6 +128846,207 @@ AFRAME.registerComponent('babiaxr-simplebarchart', {
      */
     interestedElements: [],
 
+    /**
+     * Load data from the different possible sources
+     * @param {*} oldData - Previous data attribute
+     * @return {string} Data loaded ("Ready") or handler prepared ("Waiting")
+     * 
+     * Data is loaded in this.babiaData
+     * Precedence: data attribute, else component in same element, else other component
+     */
+     loadData: function (oldData) {
+        let el = this.el;
+        let data;
+
+        if (this.data.data && oldData.data !== this.data.data) {
+            // Data in data argument, load it
+            console.log("Data in data argument");
+            data = this.data.data;
+            if (typeof(data) === 'string' || data instanceof String) {
+                this.newData = JSON.parse(data);
+            } else {
+                this.newData = data;
+            };
+            this.babiaMetadata = { id: this.babiaMetadata.id++ };
+            return "Ready";
+        } else {
+            if (this.data.from !== oldData.from) {
+                // From changed, re-register to the new data component
+                console.log("From was changed");
+                // Unregister for old querier
+                if (this.dataComponent) { this.dataComponent.unregister(el) };
+                // Find the new component and check if querier or filterdata from the event               
+                let eventName = findDataComponent(this.data, el, this)
+                // If changed to filterdata or to querier
+                if (this.dataComponentEventName && this.dataComponentEventName !== eventName) {
+                    el.removeEventListener(this.dataComponentEventName, _listener, true)
+                }
+                // Assign new eventName
+                this.dataComponentEventName = eventName
+
+                // Attach to the events of the data component
+                el.addEventListener(this.dataComponentEventName, _listener = (e) => {
+                    attachNewDataEventCallback(this, e);
+                });
+
+                // Register for the new one
+                this.dataComponent.register(el);
+            }
+
+            // If changed whatever, re-print with the current data
+            if (data !== oldData && this.newData && !this.data.incremental) {
+                // From was changed and data is absolute
+                console.log("New Absolute Data");
+                return "Ready";
+            }
+
+            return "Waiting";
+        }
+    },
+
+    /*
+    * Update title
+    */
+    updateTitle: function() {
+        const titleEl = this.titleEl;
+        const data = this.data;
+
+        titleEl.setAttribute('text-geometry', {'value': data.title});
+        if (data.font) titleEl.setAttribute('text-geometry', {'font': data.titleFont});
+        if (data.color) titleEl.setAttribute('material', {'color': data.titleColor});
+        titleEl.setAttribute('position', data.titlePosition);
+        titleEl.setAttribute('rotation', { x: 0, y: 0, z: 0 });
+    },
+
+    /*
+     * Update axis
+     */
+    updateAxis: function(labels, ticks, lengthX, maxValue) {
+        const data = this.data;
+        if (data.axis) {
+            if (!this.xAxisEl) {
+                this.xAxisEl = document.createElement('a-entity');
+                this.chartEl.appendChild(this.xAxisEl);
+            };
+            this.xAxisEl.setAttribute('babia-axis-x',
+                {'labels': labels, 'ticks': ticks, 'length': lengthX,
+                    'palette': data.palette});
+            this.xAxisEl.setAttribute('position', {
+                x: 0, y: 0, z: this.widthBars/2
+            });
+
+            if (!this.yAxisEl) {
+                this.yAxisEl = document.createElement('a-entity');
+                this.chartEl.appendChild(this.yAxisEl);
+            };
+            this.yAxisEl.setAttribute('babia-axis-y',
+                {'maxValue': maxValue, 'length': this.lengthY});
+            this.yAxisEl.setAttribute('position', {
+                x: -this.widthBars/2, y: 0, z: this.widthBars/2
+            });
+        }
+    },
+
+    /*
+     * Build chart
+     * @return {} Data loaded
+     * 
+     */
+    updateChart: function () {
+        const el = this.el;
+        const data = this.data;
+
+        let babiaData
+        if (this.currentData) {
+            babiaData = this.currentData;
+        } else {
+            babiaData = this.newData;
+        }
+        const widthBars = this.widthBars;
+        const palette = data.palette
+        const scale = data.scale
+        
+        // Update title
+        this.updateTitle();
+
+        let maxValue = Math.max.apply(Math, babiaData.map(function (o) {
+            return o[data.height];
+        }));
+
+        if (!this.lengthY) {
+            this.lengthY = data.chartHeight;
+        } else if (!data.keepHeight) {
+            this.lengthY = this.lengthY * maxValue / this.maxValue;
+        };
+        this.maxValue = maxValue;
+
+        let xLabels = [];
+        let xTicks = [];
+        let colorId = 0
+
+        let chartEl = this.chartEl;
+        for (let i = 0; i < babiaData.length; i++) {
+            let item = babiaData[i]
+ 
+            // Build bar
+            xLabel = item[data.index];
+            let posX = i * widthBars * 1.25;
+            let barEl = chartEl.querySelector('#' + xLabel);
+            if (!barEl) {
+                barEl = document.createElement('a-entity');
+                barEl.id = xLabel;
+                barEl.classList.add("babiaxraycasterclass");
+                barEl.object3D.position.x = posX;
+                chartEl.appendChild(barEl);
+            };
+
+            if (!item['_not']) { 
+                barEl.setAttribute('babia-bar', {
+                    'height': item[data.height] * this.lengthY / maxValue,
+                    'width': widthBars,
+                    'depth': widthBars,
+                    'color': colors.get(colorId, palette),
+                    'label': 'events'
+                });
+            } else {
+                barEl.setAttribute('babia-bar', {
+                    'height': -0.1,
+                    'color': colors.get(colorId, palette),
+                });
+            }
+
+            if (data.legend) {
+                barEl.setAttribute('babia-bar', {
+                    'labelText': xLabel + ': ' + item[data.height]
+                });
+            };
+            console.log("Position:", posX, barEl.getAttribute('position')['x']);
+            if (posX !== barEl.object3D.position.x) {
+                if (data.animation) {
+                    console.log("Setting position anim:", posX, barEl.object3D.position.x)
+                    barEl.setAttribute('animation', {
+                        'property': 'object3D.position.x',
+                        'to': posX,
+                        'dur': data.dur
+                    });
+                } else {
+                    console.log("Setting position")
+                    barEl.object3D.position.x = posX;
+                };
+            }
+
+            xLabels.push(item[data.index]);
+            xTicks.push(posX);
+
+            colorId++
+        }
+
+        //Print axis
+        const lengthX = widthBars * (babiaData.length * 1.25 + 0.75);
+        this.updateAxis(xLabels, xTicks, lengthX, maxValue);
+        this.labels = xLabels
+        this.ticks = xTicks
+    },
 })
 
 let findDataComponent = (data, el, self) => {
@@ -128781,12 +129109,9 @@ let attachNewDataEventCallback = (self, e) => {
     }
 
     if (!self.data.incremental){
-        // Generate chart
-        while (self.el.firstChild)
-            self.el.firstChild.remove();
-        console.log("Generating 2 barchart...")
-        self.chart = generateBarChart(self, self.data, rawData, self.el, self.animation, self.chart, self.bar_array, self.widthBars)
         self.currentData = JSON.parse(JSON.stringify(self.newData))
+        // Update chart
+        self.updateChart()
     } else {
         // First add the new data in current data
         self.newData.forEach(bar => {
@@ -128801,148 +129126,59 @@ let attachNewDataEventCallback = (self, e) => {
                 self.currentData.push(bar)
             }
         });
-        console.log(self.currentData)
-        console.log("Updating barchart...")
-        // To calculate maxValue you need all data before
-        let maxValue = Math.max.apply(Math, self.currentData.map(function (o) { return o[self.data.height]; }))
-        self.newData.forEach(bar => {
-            if (!bar._not){
-                if (document.getElementById(bar[self.data.index])){
-                    // Update bar
-                    document.getElementById(bar[self.data.index]).setAttribute('babia-bar', 'height', bar[self.data.height] * self.data.chartHeight / maxValue)
-                    document.getElementById(bar[self.data.index]).setAttribute('babia-bar', {
-                        'labelText': bar[self.data.index] + ': ' + bar[self.data.height]
-                    })
+        // If Keep Height (need re-draw all)
+        if (self.data.keepHeight){
+            // To calculate maxValue you need all data before
+            self.maxValue = Math.max.apply(Math, self.currentData.map(function (o) { return o[self.data.height]; }))
+            console.log("Re-draw the chart")
+            self.updateChart()
+        } else {
+            self.newData.forEach(bar => {
+                if (!bar._not){
+                    if (self.chartEl.querySelector('#' + bar[self.data.index])){
+                        // Update bar
+                        self.chartEl.querySelector('#' + bar[self.data.index]).setAttribute('babia-bar', 
+                        {
+                            'height': bar[self.data.height] * self.data.chartHeight / self.maxValue,
+                            'labelText': bar[self.data.index] + ': ' + bar[self.data.height]
+                        })
+                    } else {
+                        // Find last bar and get its position
+                        let colorId = self.chartEl.querySelectorAll('[babia-bar]').length
+                        let posX = self.chartEl.querySelectorAll('[babia-bar]')[colorId - 1].getAttribute('position').x + self.widthBars + self.widthBars / 4
+                        // Create new bar
+                        let barEntity = generateBar(self, self.data, bar, self.maxValue, self.widthBars, colorId, self.data.palette, posX);
+                        self.chartEl.appendChild(barEntity)
+                        // Add label and tick
+                        self.labels.push(barEntity.id)
+                        self.ticks.push(posX)
+                    }
                 } else {
-                    // Find last bar and get its position
-                    let colorId = self.el.querySelectorAll('[babia-bar]').length
-                    let posX = self.el.querySelectorAll('[babia-bar]')[colorId - 1].getAttribute('position').x + self.widthBars + self.widthBars / 4
-                    // Create new bar
-                    let barEntity = generateBar(self, self.data, bar, maxValue, self.widthBars, colorId, self.data.palette, posX);
-                    self.el.querySelector('.babiaxrChart').appendChild(barEntity)
-                    // Add label and tick
-                    self.labels.push(barEntity.id)
-                    self.ticks.push(posX)
+                    // Delete bar
+                    self.chartEl.querySelector("#" + bar[self.data.index]).setAttribute('babia-bar', 'height', -0.1)
+                    //document.getElementById(bar[self.data.index]).remove()
                 }
-            } else {
-                // Delete bar
-                document.getElementById(bar[self.data.index]).setAttribute('babia-bar', 'height', -1)
-                //document.getElementById(bar[self.data.index]).remove()
+            });
+            // Update axis
+            let len_x = self.ticks[self.ticks.length - 1] + self.widthBars * 3 / 4
+            if (!self.data.chartHeight || !self.data.keepHeight){
+                // Calculate new maxValue and lengthY
+                let maxValue_new = Math.max.apply(Math, self.currentData.map(function (o) { return o[self.data.height]; }))
+                self.lengthY = maxValue_new * self.data.chartHeight / self.maxValue
+                self.maxValue = maxValue_new
             }
-        });
-        // Update axis
-        let len = self.ticks[self.ticks.length - 1] + self.widthBars * 3 / 4
-        self.el.querySelector('[babia-axis-x]').setAttribute('babia-axis-x', {'length': len})
+            self.updateAxis(self.labels, self.ticks, len_x, self.maxValue)
+        } 
     }
 
     // Dispatch interested events because I updated my visualization
     dataReadyToSend("newData", self)
 }
 
-
-let generateBarChart = (self, data, dataRetrieved, element, animation, chart, list, widthBars) => {
-
-    if (dataRetrieved) {
-        const dataToPrint = dataRetrieved
-        const palette = data.palette
-        const title = data.title
-        const font = data.titleFont
-        const color = data.titleColor
-        const title_position = data.titlePosition
-        const scale = data.scale
-
-        let colorId = 0
-        let stepX = 0
-        let axis_dict = []
-
-        //Print Title
-        let titleEl = document.createElement('a-entity');
-        titleEl.setAttribute('text-geometry', {'value': title});
-        if (font) titleEl.setAttribute('text-geometry', {'font': font});
-        if (color) titleEl.setAttribute('material', {'color': color});    
-        titleEl.setAttribute('position', title_position);
-        titleEl.setAttribute('rotation', { x: 0, y: 0, z: 0 });
-        titleEl.classList.add("babiaxrTitle")
-        element.appendChild(titleEl);
-
-        // let title_3d = showTitle(title, font, color, title_position);
-        //element.appendChild(title_3d);
-
-        let maxValue = Math.max.apply(Math, dataToPrint.map(function (o) { return o[self.data.height]; }))
-//        if (scale) {
-//            maxY = maxY / scale
-//        } else if (heightMax) {
-//            self.valueMax = maxY
-//            self.proportion = heightMax / maxY
-//            maxY = heightMax
-//        }
-
-        let chart_entity = document.createElement('a-entity');
-        chart_entity.classList.add('babiaxrChart')
-
-        element.appendChild(chart_entity)
-
-        let labels = self.labels;
-        let ticks = self.ticks;
-        for (let item of dataToPrint) {
-            let bar = document.createElement('a-entity');
-            bar.setAttribute('babia-bar', {
-                'height': item[self.data.height] * data.chartHeight / maxValue,
-                'width': widthBars,
-                'depth': widthBars,
-                'color': colors.get(colorId, palette),
-                'label': 'events'
-            });
-            if (data.legend) {
-                bar.setAttribute('babia-bar', {
-                    'labelText': item[self.data.x_axis] + ': ' + item[self.data.height]
-                });
-            };
-            bar.setAttribute('position', { x: stepX, y: 0, z: 0 }); 
-            bar.id = item[self.data.index]
-            bar.classList.add("babiaxraycasterclass");
-            console.log(bar);
-
-            //Axis dict
-            let bar_printed = {
-                colorid: colorId,
-                posX: stepX,
-                key: item[self.data.x_axis]
-            }
-            axis_dict.push(bar_printed)
-
-            labels.push(item[self.data.x_axis]);
-            ticks.push(stepX);
-            chart_entity.appendChild(bar);
-            //Calculate stepX
-            stepX += widthBars + widthBars / 4
-            //Increase color id
-            colorId++
-        }
-
-        //Print axis
-        if (data.axis) {
-            let xAxis = document.createElement('a-entity');
-            let len = ticks[ticks.length - 1] + widthBars * 3 / 4
-            xAxis.setAttribute('babia-axis-x',
-                {'labels': labels, 'ticks': ticks, 'length': len,
-                 'palette': palette});
-            chart_entity.appendChild(xAxis);
-            xAxis.setAttribute('position', {x: 0, y: 0, z: widthBars/2});
-            let yAxis = document.createElement('a-entity');
-            yAxis.setAttribute('babia-axis-y',
-                {'maxValue': maxValue, 'length': data.chartHeight});
-            yAxis.setAttribute('position', {x: -widthBars/2, y: 0, z: widthBars/2});
-            chart_entity.appendChild(yAxis);
-        }
-        return chart;
-    }
-}
-
 let generateBar = (self, data, item, maxValue, widthBars, colorId, palette, stepX ) => {
     let bar = document.createElement('a-entity');
     bar.setAttribute('babia-bar', {
-        'height': item[self.data.height] * data.chartHeight / maxValue,
+        'height': item[self.data.height] * data.chartHeight / self.maxValue,
         'width': widthBars,
         'depth': widthBars,
         'color': colors.get(colorId, palette),
