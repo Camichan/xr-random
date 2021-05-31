@@ -16,3 +16,6 @@ require('./src/components/visualizers/babia-bars2')
 //require('aframe-plot-component');
 //require('aframe-orbit-controls');
 //require('aframe-fps-counter-component');
+
+require('./src/components/Controls/event_controller')
+require('./src/components/Controls/navigation_bar')

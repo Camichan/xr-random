@@ -63,7 +63,7 @@
 /******/ 	__webpack_require__.p = "";
 /******/
 /******/ 	// Load entry module and return exports
-/******/ 	return __webpack_require__(__webpack_require__.s = 8);
+/******/ 	return __webpack_require__(__webpack_require__.s = 10);
 /******/ })
 /************************************************************************/
 /******/ ([
@@ -76219,7 +76219,7 @@ module.exports = getWakeLock();
 });
 //# sourceMappingURL=aframe-master.js.map
 
-/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(13)))
+/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(15)))
 
 /***/ }),
 /* 1 */
@@ -77583,13 +77583,13 @@ AFRAME.registerComponent('text-geometry', {
 
 window.AFRAME = __webpack_require__(0);
 
-AFRAME.registerComponent('ui-button', __webpack_require__(9));
+AFRAME.registerComponent('ui-button', __webpack_require__(11));
 
-AFRAME.registerComponent('ui-toggle', __webpack_require__(12));
+AFRAME.registerComponent('ui-toggle', __webpack_require__(14));
 
-AFRAME.registerComponent('ui-slider', __webpack_require__(11));
+AFRAME.registerComponent('ui-slider', __webpack_require__(13));
 
-AFRAME.registerComponent('ui-rotary', __webpack_require__(10));
+AFRAME.registerComponent('ui-rotary', __webpack_require__(12));
 
 
 /***/ }),
@@ -127809,6 +127809,416 @@ if ( typeof __THREE_DEVTOOLS__ !== 'undefined' ) {
 /* 5 */
 /***/ (function(module, exports) {
 
+/* global AFRAME */
+if (typeof AFRAME === 'undefined') {
+    throw new Error('Component attempted to register before AFRAME was available.');
+}
+
+/**
+* Component for A-Frame.
+*/
+AFRAME.registerComponent('event-controller', {
+    schema: {
+        navigation : {type : 'string'},
+        targets : { type: 'string' },
+    },
+
+    /**
+    * Set if component needs multiple instancing.
+    */
+    multiple: false,
+
+    /**
+    * Called once when component is attached. Generally for initial setup.
+    */
+    init: function () {},
+
+    /**
+    * Called when component is attached and when component data changes.
+    * Generally modifies the entity based on the data.
+    */
+
+    update: function (oldData) {
+        el = this.el
+        let data = this.data
+        
+        navigation = data.navigation
+        charts = JSON.parse(data.targets)
+
+        time_evol(navigation)      
+    },
+    /**
+    * Called when a component is removed (e.g., via removeAttribute).
+    * Generally undoes all modifications to the entity.
+    */
+    remove: function () { },
+
+    /**
+    * Called on each scene tick.
+    */
+    // tick: function (t) { },
+
+    /**
+    * Called when entity pauses.
+    * Use to stop or remove any dynamic or background behavior such as events.
+    */
+    pause: function () { },
+
+    /**
+    * Called when entity resumes.
+    * Use to continue or add any dynamic or background behavior such as events.
+    */
+    play: function () { },
+
+})
+
+let el
+let navigation
+let charts
+var data_array
+var data_array_reverse = [] 
+let current
+let last
+let reverse = false
+let first_time = true
+let firts_point = 0
+
+function time_evol(navigation){ 
+    let commits = document.getElementById(navigation).getAttribute('babiaxr-navigation-bar').commits
+    if (commits && first_time){
+        data_array = JSON.parse(commits)
+        for ( let i in data_array){
+            data_array_reverse.push(data_array[i]) 
+        }
+        data_array_reverse.reverse() 
+        
+        // First current
+        if (reverse){
+            let position = (data_array.length - 1) - firts_point
+            current = data_array_reverse[firts_point]
+            last = position
+        } else {
+            current = data_array[firts_point]
+            last = firts_point
+        }
+        first_time = false
+        controls()
+    }
+}
+
+function play(array){
+    let i = 0
+    for (let x in array){
+        if (array[x] == current){
+            i = parseInt(x) + 1
+        }
+    }
+
+    let loop = setInterval( function() {
+        if (i < array.length){
+            current = array[i]
+
+            if (reverse){
+               let x = (array.length - 1) - i
+               showDate(x)
+               last = x
+            } else {
+                showDate(i)
+                last = i
+            }
+            
+            changeChart()
+            i++
+
+            document.addEventListener('babiaxrStop', function () {
+                clearInterval(loop)
+            })
+            if ( i == array.length){
+                let pause_button = document.getElementsByClassName('babiaxrPause')[0]
+                pause_button.emit('click')
+            }
+        } else {
+            el.emit('babiaxrStop')
+        }
+    }, 3000)
+}
+
+function skip(destination){
+    for ( let x in data_array ) {
+        if (data_array[x] == current){
+            if ((destination == 'next') && (x < data_array.length - 1)){
+                x++
+            } else if ((destination == 'prev') && (x >= 1)){
+                x--
+            }
+            current = data_array[x]
+            showDate(x)
+            last = x
+            break
+        }
+    }
+    changeChart()
+}
+
+function changePoint(point){
+    for (let x in data_array ) {
+        if (data_array[x].commit == point.commit){
+            current = data_array[x]
+            showDate(x)
+            last = x
+            break
+        }
+    }
+    changeChart()
+}
+
+function changeChart(){
+    let data= document.getElementById(current.commit).getAttribute('babiadata')
+    for (let i in charts){
+        let entity = document.getElementById(charts[i].id)
+        if (entity){
+            entity.setAttribute('babiaxr-vismapper', 'dataToShow', data)
+        }
+    }
+}
+
+function controls(){
+    if (reverse){
+        play(data_array_reverse)
+    } else {
+        play(data_array)
+    }
+    
+    document.addEventListener('babiaxrShow', function (event) {
+        changePoint(event.detail.data)
+        el.emit('babiaxrStop')
+    })
+
+    document.addEventListener('babiaxrContinue', function () {
+        console.log('PLAY')
+        if (reverse){
+            play(data_array_reverse)
+        } else {
+            play(data_array)
+        }
+    })
+
+    document.addEventListener('babiaxrToPresent', function () {
+        console.log('TO PRESENT')
+        reverse = false
+        el.emit('babiaxrStop')
+        play(data_array)
+    })
+
+    document.addEventListener('babiaxrToPast', function () {
+        console.log('TO PAST')
+        reverse = true
+        el.emit('babiaxrStop')
+        play(data_array_reverse)
+    })
+
+    document.addEventListener('babiaxrSkipNext', function () {
+        console.log('SKIP NEXT')
+        el.emit('babiaxrStop')
+        skip('next')
+    })
+
+    document.addEventListener('babiaxrSkipPrev', function () {
+        console.log('SKIP PREV')
+        el.emit('babiaxrStop')
+        skip('prev')
+    })
+}
+
+function showDate(i){
+    let entities = document.getElementsByClassName('babiaxrTimeBar')[0].children
+    if (last || last == 0 ){
+        let pointToHide = entities[last]
+        pointToHide.emit('removeinfo')
+    }
+    let pointToShow = entities[i]
+    pointToShow.emit('showinfo')
+}
+
+/***/ }),
+/* 6 */
+/***/ (function(module, exports) {
+
+/* global AFRAME */
+if (typeof AFRAME === 'undefined') {
+    throw new Error('Component attempted to register before AFRAME was available.');
+}
+
+AFRAME.registerComponent('navigation-bar', {
+    schema: {},
+
+    /**
+    * Set if component needs multiple instancing.
+    */
+    multiple: false,
+   
+    /**
+     * Initial creation and setting of the mesh.
+     */
+    init: function () {
+        this.createPlayer()
+    },
+
+    /**
+    * Called when component is attached and when component data changes.
+    * Generally modifies the entity based on the data.
+    */
+
+    update: function (oldData) {
+    },
+
+    player: undefined,
+
+    createPlayer: function () {
+        this.player = document.createElement('a-entity')
+        this.player.classList.add('babiaxrPlayer')
+        this.player.classList.add('babiaxraycasterclass')
+        this.el.appendChild(this.player)
+
+        // Create Buttons
+        this.createButton('rewind', 'white')
+        this.createButton('skipPrev', 'white')
+        this.createButton('pause', 'white')
+        this.createButton('skipNext', 'white')
+        this.createButton('forward', 'grey')
+    },
+
+    createButton: function(type, color){
+        let url
+        let pos_x
+        let class_name
+        let event
+        let inverse = false
+
+        if (type === 'play'){
+            url = '/src/components/Controls/models/play_button.gltf'
+            pos_x = 0.2
+            class_name = 'babiaPlay'
+            event = 'babiaContinue'
+        } else if (type === 'pause') {
+            url = '/src/components/Controls/models/pause_button.gltf'
+            pos_x = 0
+            class_name = 'babiaPause'
+            event = 'babiaStop'
+        } else if (type === 'skipNext') {
+            url = '/src/components/Controls/models/skip_button.gltf'
+            pos_x = 3
+            class_name = 'babiaSkipNext'
+            event = class_name
+            inverse = true
+        } else if (type === "skipPrev") {
+            url = '/src/components/Controls/models/skip_button.gltf'
+            pos_x = -3
+            class_name = 'babiaSkipPrev'
+            event = class_name
+        } else if (type === "rewind") {
+            url = '/src/components/Controls/models/rewind_button.gltf'
+            pos_x = -6
+            class_name = 'babiaRewind'
+            event = 'babiaToPast'
+        } else if ( type === "forward"){
+            url = '/src/components/Controls/models/rewind_button.gltf'
+            pos_x = 6
+            class_name = 'babiaForward'
+            event = 'babiaToPresent'
+            inverse = true
+        } else {
+            throw new Error("That button type doesn't exist.");
+        }
+
+        let button = document.createElement('a-entity')
+        button.setAttribute('gltf-model', "url(" + url + ")")
+        button.classList.add('babiaxraycasterclass');
+        button.classList.add(class_name)
+        button.setAttribute('position', {x: pos_x, y: 0, z: 0})
+        changeMaterial(button, color)
+
+        if (inverse) {
+            button.setAttribute('rotation', {x: 0, y: 180, z: 0})
+        } 
+
+        this.player.appendChild(button)
+
+        // Events
+        this.emitEvents(button, event)
+        this.mouseOver(button)
+    },
+
+    mouseOver: function(element){
+        element.addEventListener('mouseenter', function(){
+            changeMaterial(element, 'grey')
+        })
+    
+        element.addEventListener('mouseleave', function(){
+            changeMaterial(element, element.color)
+        })
+    },
+
+    emitEvents: function(element, event){
+        self = this
+        element.addEventListener('click', function () {
+            if (element.classList.contains('babiaPlay')){
+                this.parentEl.removeChild(this)
+                self.createButton('pause', 'white')
+            } else if (element.classList.contains('babiaPause')){
+                this.parentEl.removeChild(this)
+                self.createButton('play', 'white')
+            } else if ((element.classList.contains('babiaSkipNext')) || (element.classList.contains('babiaSkipPrev'))){
+                let pause = document.getElementsByClassName('babiaPause')[0]
+                if (pause){
+                    self.player.removeChild(pause)
+                    self.createButton('play', 'white')
+                }
+            } else if (element.classList.contains('babiaForward')){
+                this.color = 'grey'
+                changeMaterial(this, this.color)
+                let rewind = document.getElementsByClassName('babiaRewind')[0]
+                rewind.color = 'white'
+                changeMaterial(rewind, rewind.color)
+            } else if (element.classList.contains('babiaRewind')){
+                this.color = 'grey'
+                changeMaterial(this, this.color)
+                let forward = document.getElementsByClassName('babiaForward')[0]
+                forward.color = 'white'
+                changeMaterial(forward, forward.color)
+            }
+            console.log('Emit..... ' + event)
+            self.el.emit(event)
+        });
+    }
+
+})
+
+function changeMaterial(entity, color){
+    let mesh = entity.getObject3D('mesh')
+    if (!mesh) {
+        entity.addEventListener('model-loaded', function(){
+            entity.color = color
+            changeColor(entity, color)
+        });
+    } else {
+        changeColor(entity, color)
+    }
+}
+
+function changeColor(entity, color){
+    entity.object3D.traverse(function(object3D){
+        last_material = object3D.material
+        if (last_material) {    
+            object3D.material = new THREE.MeshBasicMaterial({color: color}); 
+        }
+    })
+}
+
+/***/ }),
+/* 7 */
+/***/ (function(module, exports) {
+
 AFRAME.registerComponent('my-slider', {
     schema: {
         color: { type: 'color', default: '#fff' },
@@ -127991,7 +128401,7 @@ AFRAME.registerComponent('my-slider', {
 })
 
 /***/ }),
-/* 6 */
+/* 8 */
 /***/ (function(module, exports) {
 
 /* global AFRAME */
@@ -128187,7 +128597,7 @@ let dispatchEventOnElement = (element, propertyName) => {
 
 
 /***/ }),
-/* 7 */
+/* 9 */
 /***/ (function(module, exports) {
 
 /* global AFRAME */
@@ -129206,7 +129616,7 @@ let dispatchEventOnElement = (element, propertyName) => {
 }
 
 /***/ }),
-/* 8 */
+/* 10 */
 /***/ (function(module, exports, __webpack_require__) {
 
 __webpack_require__(4)
@@ -129217,10 +129627,10 @@ __webpack_require__(3)
 __webpack_require__(2)
 
 
-__webpack_require__(5)
-__webpack_require__(6)
-//require('./src/components/visualizers/babia-bars')
 __webpack_require__(7)
+__webpack_require__(8)
+//require('./src/components/visualizers/babia-bars')
+__webpack_require__(9)
 
 //require('aframe-event-set-component');
 //require('aframe-log-component');
@@ -129228,8 +129638,11 @@ __webpack_require__(7)
 //require('aframe-orbit-controls');
 //require('aframe-fps-counter-component');
 
+__webpack_require__(5)
+__webpack_require__(6)
+
 /***/ }),
-/* 9 */
+/* 11 */
 /***/ (function(module, exports) {
 
 module.exports = {
@@ -129400,7 +129813,7 @@ module.exports = {
 
 
 /***/ }),
-/* 10 */
+/* 12 */
 /***/ (function(module, exports) {
 
 module.exports = {
@@ -129478,7 +129891,7 @@ module.exports = {
 
 
 /***/ }),
-/* 11 */
+/* 13 */
 /***/ (function(module, exports) {
 
 module.exports = {
@@ -129590,7 +130003,7 @@ module.exports = {
 
 
 /***/ }),
-/* 12 */
+/* 14 */
 /***/ (function(module, exports) {
 
 module.exports = {
@@ -129697,7 +130110,7 @@ module.exports = {
 
 
 /***/ }),
-/* 13 */
+/* 15 */
 /***/ (function(module, exports) {
 
 var g;
