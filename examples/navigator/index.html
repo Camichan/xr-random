@@ -1,0 +1,33 @@
+<html>
+
+<head>
+  <title>XR Random</title>
+  <script src="../../dist/aframe-xr-random.min.js"></script>
+  <script src="https://unpkg.com/super-hands@^3.0.1/dist/super-hands.min.js"></script>
+</head>
+
+<body>
+    <a-scene background="color: #000000">
+        <!--<a-entity environment="preset: japan"></a-entity> -->
+
+        <!-- Slider -->
+        <!--<a-entity id="valueSlider1" ui-slider="min: 1; max: 10; value: 5" position="0 1 0" rotation="90 0 0"></a-entity>-->
+        <!--<a-entity id="valueSlider2" my-slider="min: 1; max: 10; value: 5; size: 2" position="0 1.5 -1" rotation="0 0 0"
+        hoverable grabbable stretchable draggable dropppable></a-entity>-->
+        <a-entity navigator position="0 0 -3"></a-entity>
+
+        <!-- Controllers -->
+        <a-entity movement-controls="fly: true" position="0 0 0">
+          <a-entity camera position="0 0 0" look-controls></a-entity>
+          <a-entity cursor="rayOrigin:mouse"></a-entity>
+          <a-entity laser-controls="hand: right"></a-entity>
+      </a-entity>
+        <!--<a-entity interaction-hands aabb-collider="objects: .grabbable" id="lhand" hand-controls="hand: left; handModelStyle: highPoly" mixin="touch"></a-entity>
+        <a-entity interaction-hands aabb-collider="objects: .grabbable" id="rhand" hand-controls="hand: right; handModelStyle: highPoly" mixin="touch"></a-entity>
+
+        <a-camera mouse-cursor wasd-controls super-hands>-->
+            
+        </a-camera>
+    </a-scene>
+</body>
+</html>

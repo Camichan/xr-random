@@ -19,3 +19,4 @@ require('./src/components/visualizers/babia-bars2')
 
 require('./src/components/Controls/event_controller')
 require('./src/components/Controls/navigation_bar')
+require('./src/components/Controls/navigator')

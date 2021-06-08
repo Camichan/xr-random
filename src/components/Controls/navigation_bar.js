@@ -141,8 +141,9 @@ AFRAME.registerComponent('navigation-bar', {
                 forward.color = 'white'
                 changeMaterial(forward, forward.color)
             }
-            console.log('Emit..... ' + event)
-            self.el.emit(event)
+            console.log('Emit... ' + event)
+            //console.log(self)
+            self.el.parentEl.emit(event)
         });
     }
 

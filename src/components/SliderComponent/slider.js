@@ -57,15 +57,14 @@ AFRAME.registerComponent('my-slider', {
       },
 
       setTextGeometry: function(text) {
-        if (this.textmesh != null) {
-            this.textmesh.text = text;
-        } else {
-            this.loader.load(this.fontURL, (font) => { 
-                this.font = font
-                this.textmesh = this.createTextGeometry(text, -.025, .15)
-                this.lever.add(this.textmesh)
-            })
+        if (this.textmesh) {
+          this.lever.remove(this.textmesh)
         }
+        this.loader.load(this.fontURL, (font) => { 
+            this.font = font
+            this.textmesh = this.createTextGeometry(text, -.025, .15)
+            this.lever.add(this.textmesh)
+        })
       },
 
       play: function () {
@@ -126,8 +125,10 @@ AFRAME.registerComponent('my-slider', {
         this.value = value;
     
         lever.position.x = this.valueToLeverPosition(value);
-        this.setTextGeometry(value.toFixed(this.data.precision))
+        //this.setTextGeometry(value.toFixed(this.data.precision))
+        this.setTextGeometry(value)
       },
+
       valueToLeverPosition: function(value) {
         var sliderRange = this.data.size * this.data.innerSize;
         var valueRange = Math.abs(this.data.max - this.data.min);
@@ -136,6 +137,7 @@ AFRAME.registerComponent('my-slider', {
 
         return (((value - this.data.min) * sliderRange) / valueRange) + sliderMin
       },
+
       leverPositionToValue: function(position) {
         var sliderRange = this.data.size * this.data.innerSize;
         var valueRange = Math.abs(this.data.max - this.data.min);

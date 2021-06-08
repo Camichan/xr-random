@@ -63,7 +63,7 @@
 /******/ 	__webpack_require__.p = "";
 /******/
 /******/ 	// Load entry module and return exports
-/******/ 	return __webpack_require__(__webpack_require__.s = 10);
+/******/ 	return __webpack_require__(__webpack_require__.s = 11);
 /******/ })
 /************************************************************************/
 /******/ ([
@@ -76219,7 +76219,7 @@ module.exports = getWakeLock();
 });
 //# sourceMappingURL=aframe-master.js.map
 
-/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(15)))
+/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(16)))
 
 /***/ }),
 /* 1 */
@@ -77583,13 +77583,13 @@ AFRAME.registerComponent('text-geometry', {
 
 window.AFRAME = __webpack_require__(0);
 
-AFRAME.registerComponent('ui-button', __webpack_require__(11));
+AFRAME.registerComponent('ui-button', __webpack_require__(12));
 
-AFRAME.registerComponent('ui-toggle', __webpack_require__(14));
+AFRAME.registerComponent('ui-toggle', __webpack_require__(15));
 
-AFRAME.registerComponent('ui-slider', __webpack_require__(13));
+AFRAME.registerComponent('ui-slider', __webpack_require__(14));
 
-AFRAME.registerComponent('ui-rotary', __webpack_require__(12));
+AFRAME.registerComponent('ui-rotary', __webpack_require__(13));
 
 
 /***/ }),
@@ -128187,8 +128187,9 @@ AFRAME.registerComponent('navigation-bar', {
                 forward.color = 'white'
                 changeMaterial(forward, forward.color)
             }
-            console.log('Emit..... ' + event)
-            self.el.emit(event)
+            console.log('Emit... ' + event)
+            //console.log(self)
+            self.el.parentEl.emit(event)
         });
     }
 
@@ -128217,6 +128218,144 @@ function changeColor(entity, color){
 
 /***/ }),
 /* 7 */
+/***/ (function(module, exports) {
+
+/* global AFRAME */
+if (typeof AFRAME === 'undefined') {
+    throw new Error('Component attempted to register before AFRAME was available.');
+}
+
+AFRAME.registerComponent('navigator', {
+    schema: {},
+
+    /**
+    * Set if component needs multiple instancing.
+    */
+    multiple: false,
+    isPaused: undefined,
+    sliderEl: undefined,
+    toPresent: undefined,
+   
+    /**
+     * Initial creation and setting of the mesh.
+     */
+    init: function () {
+        this.toPresent = true
+        this.isPaused = false
+
+        // NEED: wait for 'babiaSelectorDataReady'
+        this.el.addEventListener('babiaSelectorDataReady', _listener = (e) => {
+            this.initializeControls();
+            toTest(this)
+        });
+
+
+        // Listener of the other events (should be re-sended to selector)
+        let events = ['babiaContinue', 'babiaStop', 'babiaToPresent', 'babiaToPast', 'babiaSpeedUpdated', 'babiaSetPosition']
+        events.forEach(evt => {
+            this.el.addEventListener(evt, _listener = (e) => {
+                // Re-send event
+                console.log('Re-emit... ', evt)
+
+                // TO TEST FUNCIONALITIES
+                if(evt === 'babiaContinue'){
+                    this.isPaused = false
+                } else if (evt === 'babiaStop'){
+                    this.isPaused = true
+                }
+
+                if(evt === 'babiaToPresent'){
+                    this.toPresent = true
+                } else if (evt === 'babiaToPast'){
+                    this.toPresent = false
+                }
+            });
+        })
+
+        let skip_events = ['babiaSkipNext', 'babiaSkipPrev']
+        skip_events.forEach (evt => {
+            this.el.addEventListener(evt, _listener = (e) => {
+                // Update Slider
+                this.isPaused = true
+                this.updateSlider(evt)
+            });
+        })
+    },
+
+    /**
+    * Called when component is attached and when component data changes.
+    * Generally modifies the entity based on the data.
+    */
+
+    update: function (oldData) {
+        // To Test
+        this.el.emit('babiaSelectorDataReady')
+    },
+
+    initializeControls: function(){
+        //console.log(e.detail)
+        // Get selector data
+
+        // Initialize Slider
+        this.sliderEl = document.createElement('a-entity');
+        this.sliderEl.setAttribute('my-slider', {
+            size: 1.5,
+            min: 0,
+            max: 10,
+            value: 5
+        }); // When implement with selector, add the attributes
+        this.sliderEl.classList.add("babiaxraycasterclass");
+        this.sliderEl.id = "timeline"
+        this.sliderEl.setAttribute('scale', {x:2.3, y:2.3, z:2.3})
+        this.el.appendChild(this.sliderEl);
+
+        // Initialize Controls
+        let controlsEl = document.createElement('a-entity');
+        controlsEl.setAttribute('navigation-bar', ""); 
+        controlsEl.classList.add("babiaxraycasterclass");
+        controlsEl.setAttribute('scale', {x:0.15, y:0.15, z:0.3})
+        controlsEl.object3D.position.y = -0.5;
+        this.el.appendChild(controlsEl);
+
+        // Initialize Speed Controller
+
+    },
+
+    updateSlider: function(evt){
+        let value = this.sliderEl.getAttribute('my-slider').value
+        if (evt ==='babiaSkipNext'){
+            value++
+        } else if (evt === 'babiaSkipPrev'){
+            value--
+        }
+        // Out of range
+        if ((value >= 0) && (value <= 10)){
+            this.sliderEl.setAttribute('my-slider', 'value', value)
+        } else {
+            this.el.querySelector('.babiaPause').emit('click')
+        }
+    },
+
+})
+
+function toTest(self){
+    setInterval(() => {
+        let evt
+        if (self.sliderEl) {
+            if (!self.isPaused){
+                if(self.toPresent){
+                    evt = 'babiaSkipNext'
+                } else {
+                    evt = 'babiaSkipPrev'
+                }
+                self.updateSlider(evt)
+            }
+        }
+    }, 3000);
+}
+
+/***/ }),
+/* 8 */
 /***/ (function(module, exports) {
 
 AFRAME.registerComponent('my-slider', {
@@ -128278,15 +128417,14 @@ AFRAME.registerComponent('my-slider', {
       },
 
       setTextGeometry: function(text) {
-        if (this.textmesh != null) {
-            this.textmesh.text = text;
-        } else {
-            this.loader.load(this.fontURL, (font) => { 
-                this.font = font
-                this.textmesh = this.createTextGeometry(text, -.025, .15)
-                this.lever.add(this.textmesh)
-            })
+        if (this.textmesh) {
+          this.lever.remove(this.textmesh)
         }
+        this.loader.load(this.fontURL, (font) => { 
+            this.font = font
+            this.textmesh = this.createTextGeometry(text, -.025, .15)
+            this.lever.add(this.textmesh)
+        })
       },
 
       play: function () {
@@ -128347,8 +128485,10 @@ AFRAME.registerComponent('my-slider', {
         this.value = value;
     
         lever.position.x = this.valueToLeverPosition(value);
-        this.setTextGeometry(value.toFixed(this.data.precision))
+        //this.setTextGeometry(value.toFixed(this.data.precision))
+        this.setTextGeometry(value)
       },
+
       valueToLeverPosition: function(value) {
         var sliderRange = this.data.size * this.data.innerSize;
         var valueRange = Math.abs(this.data.max - this.data.min);
@@ -128357,6 +128497,7 @@ AFRAME.registerComponent('my-slider', {
 
         return (((value - this.data.min) * sliderRange) / valueRange) + sliderMin
       },
+
       leverPositionToValue: function(position) {
         var sliderRange = this.data.size * this.data.innerSize;
         var valueRange = Math.abs(this.data.max - this.data.min);
@@ -128401,7 +128542,7 @@ AFRAME.registerComponent('my-slider', {
 })
 
 /***/ }),
-/* 8 */
+/* 9 */
 /***/ (function(module, exports) {
 
 /* global AFRAME */
@@ -128597,7 +128738,7 @@ let dispatchEventOnElement = (element, propertyName) => {
 
 
 /***/ }),
-/* 9 */
+/* 10 */
 /***/ (function(module, exports) {
 
 /* global AFRAME */
@@ -129616,7 +129757,7 @@ let dispatchEventOnElement = (element, propertyName) => {
 }
 
 /***/ }),
-/* 10 */
+/* 11 */
 /***/ (function(module, exports, __webpack_require__) {
 
 __webpack_require__(4)
@@ -129627,10 +129768,10 @@ __webpack_require__(3)
 __webpack_require__(2)
 
 
-__webpack_require__(7)
 __webpack_require__(8)
-//require('./src/components/visualizers/babia-bars')
 __webpack_require__(9)
+//require('./src/components/visualizers/babia-bars')
+__webpack_require__(10)
 
 //require('aframe-event-set-component');
 //require('aframe-log-component');
@@ -129640,9 +129781,10 @@ __webpack_require__(9)
 
 __webpack_require__(5)
 __webpack_require__(6)
+__webpack_require__(7)
 
 /***/ }),
-/* 11 */
+/* 12 */
 /***/ (function(module, exports) {
 
 module.exports = {
@@ -129813,7 +129955,7 @@ module.exports = {
 
 
 /***/ }),
-/* 12 */
+/* 13 */
 /***/ (function(module, exports) {
 
 module.exports = {
@@ -129891,7 +130033,7 @@ module.exports = {
 
 
 /***/ }),
-/* 13 */
+/* 14 */
 /***/ (function(module, exports) {
 
 module.exports = {
@@ -130003,7 +130145,7 @@ module.exports = {
 
 
 /***/ }),
-/* 14 */
+/* 15 */
 /***/ (function(module, exports) {
 
 module.exports = {
@@ -130110,7 +130252,7 @@ module.exports = {
 
 
 /***/ }),
-/* 15 */
+/* 16 */
 /***/ (function(module, exports) {
 
 var g;
